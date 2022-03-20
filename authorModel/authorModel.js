@@ -1,27 +1,33 @@
-const express = require('express');
+const validator = require("validator")
 const mongoose = require('mongoose');
-const validator = require ('validator');
 
-const authorSchema = new mongoose.Schema( {
-
-firstname : 
-{ type : String, required : true},
-lastName : 
-{ type : String, required : true},
-title: {
-type : String,
-        enum: ["Mr.", "Mrs", "Miss"],
-        required: true
+const authormodel = new mongoose.Schema( {
+    fname: { required:true,
+    type:String
 },
-
-email: { type : String, required : true, unique : true,
-    validate:{
-        validator: validator.isEmail,
-        message: '{value} is not a valid email',
-        isAsync: false
+    lname: { required:true,
+    type:String 
+},
+    title: {
+        type:String,
+        enum:["Mr", "Mrs", "Miss"],
+        required:true
+    },
+    email: {
+        required:true,
+        unique:true,
+        type:String,
+        validate: {
+            validator: validator.isEmail,
+            message: '{VALUE} is not a valid email',
+            isAsync: false
+        }
+    },
+    password:
+        { required:true,
+        type:String
     }
- },
- password : { type : String, required : true}
-})
 
-module.exports = mongoose.model('Author', authorSchema);
+}, { timestamps: true });   
+   
+module.exports = mongoose.model('AuthorModel', authormodel)

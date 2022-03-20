@@ -1,7 +1,7 @@
-let axios = require("axios");
-const AuthorModel = require("../authorModel/authorModel.js");
-const blogsmodel = require("../blogModel/blogModel.js")
-let validator =require("email-validator");
+// let axios = require("axios");
+const AuthorModel = require("../authorModel/AuthorModel.js");
+const blogsmodel = require("../blogModel/blogModel.js");
+const jwt = require("jsonwebtoken");
 
 const createAuthor = async function (req, res) {
     try{
@@ -18,107 +18,149 @@ const createAuthor = async function (req, res) {
      }
   };
 
-
 const createBlog = async function (req, res) {
-    try{
-               let blog = req.body
-               let authorId = req.body.authorId
-               let author = await AuthorModel.findById(authorId)
-               if(!author)
-               {
-                  res.status(400).send({status : false, msg:"No Such Author is Present,Please check authorId"})
-               }
-               let blogCreated = await blogsmodel.create(blog)
-               return res.status(201).send({status:true,data: blogCreated})
-         }
-     catch(error)
-          {
-                console.log(error)
-                res.status(500).send({status : false, msg : error.message})
-          }  
- };
-
- const getBlog = async function (req, res) {
-    try {
-        let allblogs = await blogsmodel.find({isDeleted:false})
-        if (allblogs.length === 0){
-        return res.status(404).send({ status: false, msg: "No such blog exists" });
-        }
-        else{
-        res.status(201).send({ status:true,data: allblogs });
-        }
+  try {
+    let blog = req.body
+    let authorId = req.body.authorId
+    let author = await AuthorModel.findById(authorId)
+    if (!author) {
+      return res.status(400).send({ status: false, msg: "No Such Author is Present,Please check authorId" })
     }
-    catch (err) {
-        console.log("this is the error:", err.message)
-        res.status(500).send({ msg: "Error", error: err.message })
-    }
+    let blogCreated = await blogsmodel.create(blog)
+   return res.status(201).send({ status: true, data: blogCreated })
+ }
+ catch (error) {
+    console.log(error)
+   return res.status(500).send({ status: false, msg: error.message })
+ }
 };
 
-// const updateBlog = async function (req, res) {
-//     try{
-//     let blog = await blogsmodel.findById(blogId);
-//     //Return an error if no user with the given id exists in the db
-//     if (!blog) {
-//       return res.status(401).send({msg:"No such user exists"});
-//     }
 
-//     let userBlog = req.body;
-//     let updatedBlog = await userModel.findOneAndUpdate({ _id: updateblog },{title : updatedata.title, body:updatedata.body, tags : updatedata.tags},{new : true, upsert : true});
-//     res.status(202).send({ status: updatedBlog, data: updatedBlog });
-//   }catch (error) {
-//     console.log("This is the error", err.message)
-//     res.status(500).send({ status:true, msg : error.message });
-//   }
-// };
-
-const updateBlog = async function(req,res){
-    try{
-    let updateblog = req.params.blogId
-    let hey = await blogsmodel.findById(updateblog)
-  if (!hey) {
-    return res.status(404).send({msg:"Invalid Blog"})
-  }
-  let updatedata = req.body;
-  updatedata.isPublished = true
-  let updatedUser = await blogsmodel.findOneAndUpdate({ _id: updateblog },{title : updatedata.title, body:updatedata.body, tags : updatedata.tags},{new : true, upsert : true});
-  res.status(200).send({ status: true, data: updatedUser })
-}catch(err){
-    res.status(500).send({Error : err.message})
+const getBlog = async function (req, res) {
+  try {
+    let qwery = req.query
+    let filter = {
+        isDeleted: false,     //store the condition in filter variable
+        isPublished: true,
+        ...qwery
     }
+    // console.log(filter)
+
+    const filterByQuery = await blogsmodel.find(filter)  //finding the blog by the condition that is stored in the fiter variable.
+    if(filterByQuery.length == 0) {
+        return res.status(404).send({status:false, msg:"No blog found"})
+    }
+    console.log("Data fetched successfully")
+    return res.status(201).send({status:true, data:filterByQuery})
+}
+catch(err) {
+console.log(err)
+res.status(500).send({status:false, msg: err.message})
+}
 }
 
-const deleteById = async function(req,res){
-  try{
-  let deleteblog = req.params.blogId;
-  let hey = await blogsmodel.findById(deleteblog)
-  if (!hey) {
-    return res.status(404).send({ msg: "Is not deleted" });
-  }
-  let blogId = req.params.blogId;
-  let userDel = await blogsmodel.findOneAndUpdate({_id: blogId},{isDeleted: true},{new:true});
-  res.status(200).send({status:true, data:userDel})
-  }catch(err){
-    res.status(500).send({Error : err.message})
-  }
-};
 
 
- const deleteByQuery = async function(req,res){
-  try{  
-          let query = req.query
-          let filter = {...query}
-          let filterByquery = await blogsmodel.find(filter)
-          if(filterByquery.length == 0){
-              return res.status(400).send({msg:"Blog Not Found"})
-          }
-          else{
-              let deletedDetails = await blogsmodel.findOneAndUpdate({filter}, {isDeleted : true}, {new : true})
-              return res.status(200).send({msg:deletedDetails})
-          }
-  }catch(err){
-      res.status(500).send({Error : err.message})
+const updateBlog = async function (req, res) {
+  try {
+    let id = req.params.blogId;
+    let data = req.body;
+    const updateData = await blogsmodel.findById(id)
+    if (updateData.isDeleted==true) {
+      res.status(404).send({ status: false, msg:err.message})
+    }
+    data.publishedAt = new Date();
+    data.isPublished = true;
+    const dataMore = await blogsmodel.findByIdAndUpdate(id, data, { new: true, upsert: true });
+    res.status(201).send({ status: true, msg: dataMore })
+  } catch (err) {
+    res.status(500).send({ status: false, Error:"not match" });
   }
-}  
+}
+
+
+
+const deleteById = async function (req, res) {
+  try {
+    let blogId = req.params.blogId
+    if (!blogId) {
+      res.status(400).send({ status: false, msg: "blogId is required, BAD REQUEST" })
+    }
+    let blogDetails = await blogsmodel.findOne({ _id: blogId }, { isDeleted: false })
+    if (!blogDetails) {
+      res.status(404).send({ status: false, msg: "blog not exist" })
+    } else {
+      let deleteBlogs = await blogsmodel.findOneAndUpdate({ _id: blogId }, { $set: { isDeleted: true, deletedAt :Date.now} }, { new: true });
+         res.status(201).send({ status: true, data: deleteBlogs, msg:"blog deleted " });
+      console.log(blogDetails)
+    }
+  }
+  catch (error) {
+    console.log(error)
+    res.status(500).send({ status: false, msg: error.message })
+  }
+}
+
+
+const deleteByQuery = async function (req, res) {
+  try {
+    let authorIds = req.query.authorId
+    let categories = req.query.category
+    let tag = req.query.tags
+    let subcategories = req.query.subcategory
+    if (!authorIds && !categories && !tag && !subcategories) {
+      console.log("provide all subs, tags")
+      return res.status(400).send({ status: false, msg: "query is required, BAD REQUEST" })
+    }
+    let authorDetails = await AuthorModel.findById({ _id: authorIds })
+    if (!authorDetails) {
+      return res.status(404).send({ status: false, msg: "authorId doesn't exist" })
+    } else {
+      let updatedDetails = await blogsmodel.findOneAndUpdate({$or: [ { authorId: authorIds },{ category: categories }, { tags: { $in: [tag] } }, { subcategory: { $in: [subcategories]}}]},{ isDeleted: true})
+      res.status(201).send({data: updatedDetails, msg:"blog deleted "})
+      req.body.deletedAt = new Date()
+      console.log(updatedDetails)
+    }
+
+  }
+  catch (error) {
+    console.log(error)
+    res.status(500).send({status: false, msg: error.message })
+  }
+}
+
+
+const loginUser = async function (req, res) {
+  try {
+     let data = req.body;
+     if (Object.entries(data).length == 0) {
+        res.status(400).send({ status: false, msg: "kindly pass Some Data" })
+     }
+     let username = req.body.email;
+     let password = req.body.password;
+     let user = await AuthorModel.findOne({ email: username, password: password });
+     if (!user)
+        return res.status(400).send({
+           status: false,
+           msg: "username or password is not correct",
+        });
+     let token = jwt.sign({
+        userId: user._id,
+        email: username
+     },
+        "first project"
+     );
+     res.setHeader("x-api-key", token);
+     res.status(200).send({ status: true, data: token })
+
+  }
+  catch (err) {
+     res.status(500).send({ status: false,Error: err.message })
+  }
+}
+
+
+
 
 module.exports.createAuthor=createAuthor
 module.exports.createBlog=createBlog
@@ -126,3 +168,4 @@ module.exports.getBlog=getBlog
 module.exports.updateBlog=updateBlog
 module.exports.deleteById=deleteById
 module.exports.deleteByQuery=deleteByQuery
+module.exports.loginUser=loginUser
